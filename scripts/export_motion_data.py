@@ -2,7 +2,7 @@ import bpy
 import csv
 
 
-def calculate_velocity(current_frame, pos, curve_length, elapsed_distance_percent, fps):
+def calculate_velocity(current_frame, pos, curve_length, curve_duration, edp_formatted, fps, precision):
     '''
     Takes in the current frame & postion. 
     Determines velocity 
@@ -10,37 +10,39 @@ def calculate_velocity(current_frame, pos, curve_length, elapsed_distance_percen
     if current_frame == first_frame: 
         # edge case first frame 
         bpy.context.scene.frame_set(current_frame + 1) # set the scene forward a frame
-        next_pos = (elapsed_distance_percent * curve_length) / 100.0
+        next_pos = (float(edp_formatted) * curve_length) / curve_duration
+        next_pos_formatted = "{:.{}f}".format(next_pos, precision)
         
         # Nothing to look back to, so just use current frame 
         prev_pos = pos[current_frame]
-        delta_t = 1.0/ fps
+        delta_t = 1.0/fps
         
         bpy.context.scene.frame_set(current_frame ) # set the scene back to current frame
                 
     elif current_frame == last_frame:  
          # edge case last frame  
          # Nothing to look forward to, so just use current frame 
-         next_pos = (elapsed_distance_percent * curve_length) / 100.0
+         next_pos_formatted = pos[current_frame]
          
-         bpy.context.scene.frame_set(current_frame - 1) # set the scene back a frame
-         prev_pos = (elapsed_distance_percent * curve_length) / 100.0
+         prev_pos = pos[current_frame - 1]
          
          delta_t = 1.0/fps
          bpy.context.scene.frame_set(current_frame) # set the scene back to current frame
     else:  
         # normal scenario 
-        bpy.context.scene.frame_set(current_frame + 1) # set the scene forward a frame
-        next_pos = (elapsed_distance_percent * curve_length) / 100.0
         
-        bpy.context.scene.frame_set(current_frame - 1) # set the scene back a frame
-        prev_pos = (elapsed_distance_percent * curve_length) / 100.0
+        bpy.context.scene.frame_set(current_frame + 1) # set the scene forward a frame
+        next_pos = (float(edp_formatted) * curve_length) / curve_duration
+        next_pos_formatted = "{:.{}f}".format(next_pos, precision)
+        
+        #bpy.context.scene.frame_set(current_frame) # set the scene back a frame
+        prev_pos = pos[current_frame - 1]
         delta_t = (1.0/fps)**2 
     
-    print('next_pos:' , next_pos)
+    print('next_pos:' , next_pos_formatted)
     print('prev_pos:', prev_pos)   
     print('delta_t:', delta_t)
-    vel = (float(next_pos) - float(prev_pos)) / float(delta_t)
+    vel = (float(next_pos_formatted) - float(prev_pos)) / float(delta_t)
         
     return vel
         
@@ -61,22 +63,26 @@ def generate_data(first_frame, last_frame, precision, fps):
         bpy.context.scene.frame_set(frame) # set the scene
         
         curve_length = bpy.context.object.data.splines[0].calc_length()
-        elapsed_distance_percent = bpy.data.curves["track_curve"].eval_time 
         
-        pos = (elapsed_distance_percent * curve_length) / 100.0
+        curve_duration = bpy.data.curves["track_curve"].path_duration
+        elapsed_distance_percent = bpy.data.curves["track_curve"].eval_time
+        edp_formatted = "{:.{}f}".format(elapsed_distance_percent, precision)
+        print("elapsed_distance_percent", elapsed_distance_percent)
+        
+        print('elapsed_distance_percent(formatted:' , edp_formatted) 
+        
+        pos = (elapsed_distance_percent * curve_length) / curve_duration
+        
         pos_formatted = "{:.{}f}".format(pos, precision)
         prop_pos.append(pos_formatted)
         
-        vel = calculate_velocity(frame, prop_pos, curve_length, elapsed_distance_percent, fps)
+        vel = calculate_velocity(frame, prop_pos, curve_length, curve_duration, edp_formatted, fps, precision)
         vel_formatted = "{:.{}f}".format(vel, precision)
         prop_vel.append(vel_formatted)
         
         time = frame / fps
         time_formatted =  "{:.{}f}".format(time, precision)
-        motion_data_dict[frame] = frame, 
-                         time_formatted, 
-                        prop_pos[frame], 
-                        prop_vel[frame], 
+        motion_data_dict[frame] = frame, time_formatted, prop_pos[frame], prop_vel[frame], 
     
     return motion_data_dict
 
@@ -107,14 +113,17 @@ def write_to_csv(headers, motion_data, csv_path, first_frame, last_frame, precis
     
     print("File Written")
   
-csv_file_path = "D:/Exports/output_03.csv" # Change this to your desired path
+csv_file_path = "D:/Exports/output_07.csv" # Change this to your desired path
 
 precision = 4 # sets the data precision for the file
  
 fps = float(bpy.context.scene.render.fps)  #captures file framerate (as an int)
 
+# providing the code here if you don't want to hard code your export length
 first_frame = 0
-last_frame = 600
+# first_frame = bpy.data.scenes["Scene"].frame_start
+last_frame = 1000
+# last_frame = bpy.data.scenes["Scene"].frame_end
  
 motion_data = generate_data(first_frame, last_frame, precision, fps)
 headers = generate_headers()
