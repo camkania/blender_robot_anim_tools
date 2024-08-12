@@ -108,7 +108,7 @@ def write_to_csv(headers, motion_data, csv_path, first_frame, last_frame, precis
     print("File Written")
 
 """
-Start of Function Calls
+Start of Program
 """  
 csv_file_path = "D:/Exports/output.csv" # Change this to your desired path
 
