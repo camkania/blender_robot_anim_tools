@@ -5,7 +5,7 @@ import csv
 def calculate_velocity(current_frame, pos, curve_length, curve_duration, edp_formatted, fps, precision):
     '''
     Takes in the current frame & postion. 
-    Determines velocity 
+    Returns velocity 
     '''
     delta_t = 1.0/fps
     
