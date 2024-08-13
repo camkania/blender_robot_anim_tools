@@ -17,7 +17,6 @@ class DATA_OT_motion_io(bpy.types.Operator):
     bl_label = "Motion Data I/O"
     bl_options = {'REGISTER', 'UNDO'}
     
-    
     first_frame: bpy.props.IntProperty(
         name = "First Frame",
         description = " First Frame of Exported Profile",
@@ -93,9 +92,24 @@ class DATA_OT_motion_io(bpy.types.Operator):
         Default to execute, only use others if you cannot acheive your goal.
     """
     def execute(self, context):
-        motion_data = self.generate_data(self.first_frame, self.last_frame, self.precision, self.fps)
+        props = context.scene.motion_io_props
+        motion_data = self.generate_data(
+            props.first_frame,
+            props.last_frame,
+            props.precision,
+            props.fps
+        )
+
         headers = self.generate_headers()
-        self.write_to_csv(headers, motion_data, self.save_location, self.first_frame, self.last_frame, self.precision)
+        
+        self.write_to_csv(
+            headers,
+            motion_data,
+            props.save_location,
+            props.first_frame,
+            props.last_frame,
+            props.precision
+        )
         
         return {'FINISHED'}
 
@@ -172,13 +186,62 @@ class VIEW3D_PT_motion_io(bpy.types.Panel):
     bl_label = "Motion I/O"
 
     def draw(self, context):
-        self.layout.operator("motion_data.io")
+        layout = self.layout
+        
+        # Draw properties
+        op = context.scene.motion_io_props
+        layout.prop(op, "first_frame")
+        layout.prop(op, "last_frame")
+        layout.prop(op, "precision")
+        layout.prop(op, "fps")
+        layout.prop(op, "save_location")
+
+        # Add the export button
+        props = layout.operator("motion_data.io", text="Export Data", icon="MONKEY")
+
+class MotionIOProperties(bpy.types.PropertyGroup):
+    first_frame: bpy.props.IntProperty(
+        name="First Frame",
+        description="First Frame of Exported Profile",
+        default=0
+    )
+
+    last_frame: bpy.props.IntProperty(
+        name="Last Frame",
+        description="Last Frame of Exported Profile",
+        default=1000
+    )
+
+    precision: bpy.props.IntProperty(
+        name="Precision",
+        description="How precise do you want your export",
+        default=4,
+        min=1,
+        max=10
+    )
+
+    fps: bpy.props.FloatProperty(
+        name="Frames Per Second",
+        description="Frames Per Second",
+        default=30.0
+    )
+
+    save_location: bpy.props.StringProperty(
+        name="Save File Location",
+        description="Location where the file is saved",
+        default="D:/Exports/output.csv",
+        subtype='FILE_PATH'
+    )
 
 def register():
     bpy.utils.register_class(DATA_OT_motion_io)
+    bpy.utils.register_class(MotionIOProperties)
     bpy.utils.register_class(VIEW3D_PT_motion_io)
+    bpy.types.Scene.motion_io_props = bpy.props.PointerProperty(type=MotionIOProperties)
 
 def unregister():
     bpy.utils.unregister_class(DATA_OT_motion_io)
+    bpy.utils.unregister_class(MotionIOProperties)
     bpy.utils.unregister_class(VIEW3D_PT_motion_io)
+    del bpy.types.Scene.motion_io_props
       
