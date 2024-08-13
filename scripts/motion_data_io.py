@@ -1,16 +1,15 @@
-import bpy
-import csv 
-
 bl_info = {
-    "name": "Motion Data I/O",
-    "description": "Export Kinematic Motion Data from your your Blender animations.",
-    "author": "Cam <cam@camkania.com>",
+    "name": "Motion Data IO",
+    "description": "Export Kinematic Motion Data from your your Blender animations",
+    "author": "Cam",
     "version": (1, 0),
-    "blender": (4,2,0),
-    "category": "Object",
-    "location" "View3D"
-    
+    "blender": (4, 2, 0),
+    "location": 'VIEW_3D',
+    "category": "Object",  
 }
+
+import bpy 
+import csv
 
 class DATA_OT_motion_io(bpy.types.Operator):
     """ The Tooltip """ 
@@ -46,61 +45,62 @@ class DATA_OT_motion_io(bpy.types.Operator):
         )
     
     save_location: bpy.props.StringProperty(
-        name="Save File Location",
+        name = "Save File Location",
         description = "Location where the file is saved",
         default = "D:/Exports/output.csv"
         )   
     
-    def calculate_velocity(current_frame, pos, curve_length, curve_duration, edp_formatted, fps, precision):
-    '''
-    Takes in the current frame & postion. 
-    Returns velocity 
-    '''
-    delta_t = 1.0/fps
-    
-    if current_frame == first_frame: 
-        # edge case first frame 
-        bpy.context.scene.frame_set(current_frame + 1) # set the scene forward a frame
-        next_pos = (float(edp_formatted) * curve_length) / curve_duration
-        next_pos_formatted = "{:.{}f}".format(next_pos, precision)
+    def calculate_velocity(self, current_frame, pos, curve_length, curve_duration, edp_formatted, fps, precision):
+        '''
+        Takes in the current frame & postion. 
+        Returns velocity 
+        '''
+        delta_t = 1.0/fps
         
-        # Nothing to look back to, so just use current frame 
-        prev_pos = pos[current_frame]
+        if current_frame == self.first_frame: 
+            # edge case first frame 
+            bpy.context.scene.frame_set(current_frame + 1) # set the scene forward a frame
+            next_pos = (float(edp_formatted) * curve_length) / curve_duration
+            next_pos_formatted = "{:.{}f}".format(next_pos, precision)
+            
+            # Nothing to look back to, so just use current frame 
+            prev_pos = pos[current_frame]
+            
+            bpy.context.scene.frame_set(current_frame ) # set the scene back to current frame
+                    
+        elif current_frame == self.last_frame:  
+             # edge case last frame  
+             # Nothing to look forward to, so just use current frame 
+             next_pos_formatted = pos[current_frame]
+             
+             prev_pos = pos[current_frame - 1]
+             bpy.context.scene.frame_set(current_frame) # set the scene back to current frame
+        else:  
+            # normal scenario 
+            
+            bpy.context.scene.frame_set(current_frame + 1) # set the scene forward a frame
+            next_pos = (float(edp_formatted) * curve_length) / curve_duration
+            next_pos_formatted = "{:.{}f}".format(next_pos, precision)
+            
+            #bpy.context.scene.frame_set(current_frame) # set the scene back a frame
+            prev_pos = pos[current_frame - 1]
         
-        bpy.context.scene.frame_set(current_frame ) # set the scene back to current frame
-                
-    elif current_frame == last_frame:  
-         # edge case last frame  
-         # Nothing to look forward to, so just use current frame 
-         next_pos_formatted = pos[current_frame]
-         
-         prev_pos = pos[current_frame - 1]
-         bpy.context.scene.frame_set(current_frame) # set the scene back to current frame
-    else:  
-        # normal scenario 
-        
-        bpy.context.scene.frame_set(current_frame + 1) # set the scene forward a frame
-        next_pos = (float(edp_formatted) * curve_length) / curve_duration
-        next_pos_formatted = "{:.{}f}".format(next_pos, precision)
-        
-        #bpy.context.scene.frame_set(current_frame) # set the scene back a frame
-        prev_pos = pos[current_frame - 1]
-    
-    vel = (float(next_pos_formatted) - float(prev_pos)) / float(delta_t)
-        
-    return vel
+        vel = (float(next_pos_formatted) - float(prev_pos)) / float(delta_t)
+            
+        return vel
 
-    """ 
-    Default to execute, only use others if you cannot acheive your goal.
+        """ 
+        Default to execute, only use others if you cannot acheive your goal.
     """
     def execute(self, context):
-        motion_data = generate_data(self.first_frame, self.last_frame, self.precision, self.fps)
-        headers = generate_headers()
-        write_to_csv(headers, motion_data, self.save_location, self.first_frame, self.last_frame, self.precision)
+        motion_data = self.generate_data(self.first_frame, self.last_frame, self.precision, self.fps)
+        headers = self.generate_headers()
+        self.write_to_csv(headers, motion_data, self.save_location, self.first_frame, self.last_frame, self.precision)
+        
         return {'FINISHED'}
 
    
-    def generate_data(first_frame, last_frame, precision, fps):
+    def generate_data(self, first_frame, last_frame, precision, fps):
         ''' 
         Builds a list of the propulsion data at each frame.
         '''
@@ -129,7 +129,7 @@ class DATA_OT_motion_io(bpy.types.Operator):
             pos_formatted = "{:.{}f}".format(pos, precision)
             prop_pos.append(pos_formatted)
             
-            vel = calculate_velocity(frame, prop_pos, curve_length, curve_duration, edp_formatted, fps, precision)
+            vel = self.calculate_velocity(frame, prop_pos, curve_length, curve_duration, edp_formatted, fps, precision)
             vel_formatted = "{:.{}f}".format(vel, precision)
             prop_vel.append(vel_formatted)
             
@@ -139,7 +139,7 @@ class DATA_OT_motion_io(bpy.types.Operator):
         
         return motion_data_dict
 
-    def generate_headers():
+    def generate_headers(self):
         ''' 
         Builds a list of headers for the columns in the csv
         '''
@@ -151,7 +151,7 @@ class DATA_OT_motion_io(bpy.types.Operator):
                 "Propulsion Jerk (m/s^3)"
                 )    
 
-    def write_to_csv(headers, motion_data, csv_path, first_frame, last_frame, precision):
+    def write_to_csv(self, headers, motion_data, csv_path, first_frame, last_frame, precision):
         ''' 
         Writes the data our to the csv file. 
         '''
@@ -165,11 +165,20 @@ class DATA_OT_motion_io(bpy.types.Operator):
         
         print("File Written")
 
+class VIEW3D_PT_motion_io(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Motion I/O"
+    bl_label = "Motion I/O"
+
+    def draw(self, context):
+        self.layout.operator("motion_data.io")
+
 def register():
     bpy.utils.register_class(DATA_OT_motion_io)
+    bpy.utils.register_class(VIEW3D_PT_motion_io)
 
 def unregister():
-      bpy.utils.unregister_class(DATA_OT_motion_io)
+    bpy.utils.unregister_class(DATA_OT_motion_io)
+    bpy.utils.unregister_class(VIEW3D_PT_motion_io)
       
-if __name__ == '__main__':
-    register()
