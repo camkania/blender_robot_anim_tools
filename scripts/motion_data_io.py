@@ -10,48 +10,52 @@ bl_info = {
 
 import bpy 
 import csv
+from bpy_extras.io_utils import ImportHelper
 
-class DATA_OT_motion_io(bpy.types.Operator):
+class DATA_OT_motion_import(bpy.types.Operator, ImportHelper):
+    bl_idname = "motion_data.import"
+    bl_label = "Import Motion Data"
+    bl_description = "Import motion data from CSV to animate an object"
+
+    filename_ext = ".csv"
+    filter_glob: bpy.props.StringProperty(default="*.csv", options={'HIDDEN'})
+
+    def execute(self, context):
+        return self.import_motion_data(context, self.filepath)
+
+    def import_motion_data(self, context, filepath):
+        # Get the active object
+        obj = context.active_object
+        if not obj:
+            self.report({'ERROR'}, "No active object to animate")
+            return {'CANCELLED'}
+
+        # Read CSV file
+        with open(filepath, 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                frame = int(float(row['Frames (30fps)']))
+                x = float(row['Distance Elapsed(m)'])
+                # Assuming Y and Z are constant, modify as needed
+                y = obj.location[1]
+                z = obj.location[2]
+
+                # Set keyframe
+                obj.location = (x, y, z)
+                obj.keyframe_insert(data_path="location", frame=frame)
+
+        self.report({'INFO'}, f"Imported motion data for {obj.name}")
+        return {'FINISHED'}
+
+class DATA_OT_motion_export(bpy.types.Operator):
     """ The Tooltip """ 
-    bl_idname = "motion_data.io"
-    bl_label = "Motion Data I/O"
+    bl_idname = "motion_data.output"
+    bl_label = "Export Motion Data"
     bl_options = {'REGISTER', 'UNDO'}
-    
-    first_frame: bpy.props.IntProperty(
-        name = "First Frame",
-        description = " First Frame of Exported Profile",
-        default = 0,
-        )  
-    
-    last_frame: bpy.props.IntProperty(
-        name = "Last Frame",
-        description = " Last Frame of Exported Profile",
-        default = 1000,
-        )
-    
-    precision: bpy.props.IntProperty(
-        name = "Precision",
-        description = " How precise do you want your export ",
-        default = 4,
-        min = 1, 
-        max = 10,
-        )
-    
-    fps: bpy.props.FloatProperty(
-        name = "Frames Per Second",
-        description = "Frames Per Second",
-        default = 30.0,
-        )
-    
-    save_location: bpy.props.StringProperty(
-        name = "Save File Location",
-        description = "Location where the file is saved",
-        default = "D:/Exports/output.csv"
-        )   
     
     def calculate_velocity(self, current_frame, pos, curve_length, curve_duration, edp_formatted, fps, precision):
         '''
-        Takes in the current frame & postion. 
+        Takes in the current frame & position. 
         Returns velocity 
         '''
         delta_t = 1.0/fps
@@ -89,7 +93,7 @@ class DATA_OT_motion_io(bpy.types.Operator):
         return vel
 
         """ 
-        Default to execute, only use others if you cannot acheive your goal.
+        Default to execute, only use others if you cannot achieve your goal.
     """
     def execute(self, context):
         props = context.scene.motion_io_props
@@ -134,9 +138,6 @@ class DATA_OT_motion_io(bpy.types.Operator):
             curve_duration = bpy.data.curves["track_curve"].path_duration
             elapsed_distance_percent = bpy.data.curves["track_curve"].eval_time
             edp_formatted = "{:.{}f}".format(elapsed_distance_percent, precision)
-            #print("elapsed_distance_percent", elapsed_distance_percent)
-            
-            #print('elapsed_distance_percent(formatted:' , edp_formatted) 
             
             pos = (elapsed_distance_percent * curve_length) / curve_duration
             
@@ -187,6 +188,9 @@ class VIEW3D_PT_motion_io(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+
+        # Add the import button
+        layout.operator("motion_data.import", text="Import Data", icon="IMPORT")
         
         # Draw properties
         op = context.scene.motion_io_props
@@ -197,7 +201,7 @@ class VIEW3D_PT_motion_io(bpy.types.Panel):
         layout.prop(op, "save_location")
 
         # Add the export button
-        props = layout.operator("motion_data.io", text="Export Data", icon="MONKEY")
+        props = layout.operator("motion_data.export", text="Export Data", icon="MONKEY")
 
 class MotionIOProperties(bpy.types.PropertyGroup):
     first_frame: bpy.props.IntProperty(
@@ -229,6 +233,13 @@ class MotionIOProperties(bpy.types.PropertyGroup):
     save_location: bpy.props.StringProperty(
         name="Save File Location",
         description="Location where the file is saved",
+        default="D:/Exports/output.csv",
+        subtype='FILE_PATH'
+    )
+
+    load_location: bpy.props.StringProperty(
+        name="Load File Location",
+        description="Location where the data file is saved",
         default="D:/Exports/output.csv",
         subtype='FILE_PATH'
     )
