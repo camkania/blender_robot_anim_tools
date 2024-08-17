@@ -50,9 +50,9 @@ class DATA_OT_motion_import(bpy.types.Operator):
         return {'FINISHED'}
 
 class DATA_OT_motion_export(bpy.types.Operator):
-    """ The Tooltip """ 
     bl_idname = "motion_data.export"
     bl_label = "Export Motion Data"
+    bl_description = "Export motion data to CSV. Enabled once a valid path is set."
     bl_options = {'REGISTER', 'UNDO'}
     
     def calculate_velocity(self, current_frame, first_frame, last_frame, pos, curve_length, curve_duration, edp_formatted, fps, precision):
@@ -93,10 +93,12 @@ class DATA_OT_motion_export(bpy.types.Operator):
         vel = (float(next_pos_formatted) - float(prev_pos)) / float(delta_t)
             
         return vel
+    
 
-        """ 
-        Default to execute, only use others if you cannot achieve your goal.
-    """
+    @classmethod
+    def poll(cls, context):
+        return context.scene.motion_io_props.is_save_path_valid()
+
     def execute(self, context):
         props = context.scene.motion_io_props
         motion_data = self.generate_data(
@@ -262,6 +264,9 @@ class MotionIOProperties(bpy.types.PropertyGroup):
 
     def is_load_path_valid(self):
         return self.load_location and os.path.isfile(self.load_location)
+
+    def is_save_path_valid(self):
+        return self.save_location and os.path.isfile(self.save_location)
 
 
 def register():
