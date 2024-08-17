@@ -10,11 +10,16 @@ bl_info = {
 
 import bpy 
 import csv
+import os
 
 class DATA_OT_motion_import(bpy.types.Operator):
     bl_idname = "motion_data.import"
     bl_label = "Import Motion Data"
-    bl_description = "Import motion data from CSV to animate an object"
+    bl_description = "Import motion data from CSV to animate an object. Enabled once a valid path is set."
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.motion_io_props.is_load_path_valid()
 
     def execute(self, context):
         props = context.scene.motion_io_props
@@ -66,7 +71,7 @@ class DATA_OT_motion_export(bpy.types.Operator):
             # Nothing to look back to, so just use current frame 
             prev_pos = pos[current_frame]
             
-            bpy.context.scene.frame_set(current_frame ) # set the scene back to current frame
+            bpy.context.scene.frame_set(current_frame) # set the scene back to current frame
                     
         elif current_frame == last_frame:  
              # edge case last frame  
@@ -198,8 +203,10 @@ class VIEW3D_PT_motion_io(bpy.types.Panel):
         op = context.scene.motion_io_props
 
         layout.prop(op, "load_location")
-        # Add the import button
-        layout.operator("motion_data.import", text="Import Data", icon="IMPORT")
+    
+        row = layout.row()
+        row.operator("motion_data.import", text="Import Data", icon="IMPORT")
+        row.enabled = op.is_load_path_valid()
         
         # Draw properties
         
@@ -247,11 +254,15 @@ class MotionIOProperties(bpy.types.PropertyGroup):
     )
 
     load_location: bpy.props.StringProperty(
-        name="Load from:",
-        description="Location where the data file is saved",
+        name="Load from",
+        description="Location where the data file is saved.",
         default="D:/Imports/input.csv",
         subtype='FILE_PATH'
     )
+
+    def is_load_path_valid(self):
+        return self.load_location and os.path.isfile(self.load_location)
+
 
 def register():
     bpy.utils.register_class(DATA_OT_motion_export)
