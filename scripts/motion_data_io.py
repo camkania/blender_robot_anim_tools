@@ -99,6 +99,7 @@ class DATA_OT_motion_export(bpy.types.Operator):
     def poll(cls, context):
         return context.scene.motion_io_props.is_save_path_valid()
 
+
     def execute(self, context):
         props = context.scene.motion_io_props
         motion_data = self.generate_data(
@@ -118,6 +119,8 @@ class DATA_OT_motion_export(bpy.types.Operator):
             props.last_frame,
             props.precision
         )
+        
+        self.report({'INFO'}, f"Data exported to {props.save_location}")
         
         return {'FINISHED'}
 
@@ -206,9 +209,9 @@ class VIEW3D_PT_motion_io(bpy.types.Panel):
 
         layout.prop(op, "load_location")
     
-        row = layout.row()
-        row.operator("motion_data.import", text="Import Data", icon="IMPORT")
-        row.enabled = op.is_load_path_valid()
+        import_row = layout.row()
+        import_row.operator("motion_data.import", text="Import Data", icon="IMPORT")
+        import_row.enabled = op.is_load_path_valid()
         
         # Draw properties
         
@@ -219,7 +222,9 @@ class VIEW3D_PT_motion_io(bpy.types.Panel):
         layout.prop(op, "save_location")
 
         # Add the export button
-        layout.operator("motion_data.export", text="Export Data", icon="EXPORT")
+        export_row = layout.row()
+        export_row.operator("motion_data.export", text="Export Data", icon="EXPORT")
+        export_row.enabled = op.is_save_path_valid()
 
 class MotionIOProperties(bpy.types.PropertyGroup):
     first_frame: bpy.props.IntProperty(
@@ -266,7 +271,10 @@ class MotionIOProperties(bpy.types.PropertyGroup):
         return self.load_location and os.path.isfile(self.load_location)
 
     def is_save_path_valid(self):
-        return self.save_location and os.path.isfile(self.save_location)
+        if not self.save_location:
+            return False
+        dir_path = os.path.dirname(self.save_location)
+        return os.path.isdir(dir_path)
 
 
 def register():
