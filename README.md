@@ -1,5 +1,8 @@
-# blender_robot_anim_tools
+## blender_robot_anim_tools
  Collection of Models, Scripts, Rigs, and Animations designed to be used in Blender
+
+![Robot Interface](screenshots/robot_interface.png)
+*Fig 1: Screenshot of the robot control interface*
 
 How to install the Blender Add-on (Tested in Blender 4.2) 
 ---------------------------------------------------------
